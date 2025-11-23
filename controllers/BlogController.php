@@ -1,43 +1,33 @@
 <?php
-// controllers/BlogController.php
-require_once __DIR__ . '/../models/Post.php';
+require_once 'models/Post.php';
+require_once __DIR__ . '/../vendor/autoload.php'; // автозавантаження Composer
 
-class BlogController
-{
-    // Показати всі пости
-    public function showAllPosts()
-    {
+class BlogController {
+
+    public function showAllPosts() {
+
         $posts = Post::getAll();
-        include __DIR__ . '/../views/postsView.php';
-    }
 
-    // Показати один пост по id (індекс у масиві)
-    public function showPost($id)
-    {
-        $posts = Post::getAll();
-        if (!isset($posts[$id])) {
-            $this->showNotFound();
-            return;
+        // Пошук
+        $search = isset($_GET['search']) ? trim($_GET['search']) : '';
+
+        if ($search !== '') {
+            $query = mb_strtolower($search);
+
+            $posts = array_filter($posts, function($post) use ($query) {
+                return str_contains(mb_strtolower($post->title), $query)
+                    || str_contains(mb_strtolower($post->content), $query);
+            });
         }
-        $post = $posts[$id];
-        include __DIR__ . '/../views/postSingleView.php';
-    }
 
-    // Пошук постів за назвою (фільтрація)
-    public function searchPosts($query)
-    {
-        $query = trim((string)$query);
-        $posts = [];
-        if ($query !== '') {
-            $posts = Post::search($query);
-        }
-        include __DIR__ . '/../views/postsView.php';
-    }
+        // Пагінація
+        $perPage = 3;
+        $totalPages = max(1, ceil(count($posts) / $perPage));
+        $page = isset($_GET['page']) ? max(1, min((int)$_GET['page'], $totalPages)) : 1;
 
-    // Сторінка 404
-    public function showNotFound()
-    {
-        http_response_code(404);
-        include __DIR__ . '/../views/404.php';
+        $offset = ($page - 1) * $perPage;
+        $posts = array_slice($posts, $offset, $perPage);
+
+        include 'views/postsView.php';
     }
 }
